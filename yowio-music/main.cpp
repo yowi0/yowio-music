@@ -46,6 +46,7 @@ int main(int, char**)
     // SFML music setup
     music.setVolume(sfmlVolume);
     RefreshPathSongs(songPath);
+    std::thread watcherThread(WatchDirectory, songPath, std::ref(stopWatching));
 
     // Main loop
     bool done = false;
@@ -386,6 +387,8 @@ int main(int, char**)
         if (result == D3DERR_DEVICELOST && g_pd3dDevice->TestCooperativeLevel() == D3DERR_DEVICENOTRESET)
             ResetDevice();
     }
+
+    stopWatching = true;
 
     ImGui_ImplDX9_Shutdown();
     ImGui_ImplWin32_Shutdown();

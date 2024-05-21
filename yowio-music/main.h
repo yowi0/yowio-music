@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <tchar.h>
 #include <filesystem>
+#include <thread>
 namespace fs = std::filesystem;
 
 /*      SFML        */
@@ -43,6 +44,7 @@ std::string songPath = "./songs";
 /*      DOWNLOADER      */
 static char downloadUrl[128];
 std::vector<std::string> addedUrl = {};
+std::atomic<bool> stopWatching(false);
 
 void RefreshPathSongs(const std::string& path)
 {
@@ -74,6 +76,50 @@ void RefreshPathSongs(const std::string& path)
     {
         std::cerr << "Error al acceder al sistema de archivos: " << err.what() << '\n';
     }
+}
+
+// Convert a UTF-8 string to a wide string (UTF-16)
+std::wstring ConvertToWideString(const std::string& str)
+{
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
+    std::wstring wstr(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], size_needed);
+    return wstr;
+}
+
+// Function to watch directory changes
+void WatchDirectory(const std::string& path, std::atomic<bool>& stopFlag)
+{
+    std::wstring wpath = ConvertToWideString(path);
+
+    HANDLE hChange = FindFirstChangeNotification(
+        wpath.c_str(),
+        FALSE,
+        FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE
+    );
+
+    if (hChange == INVALID_HANDLE_VALUE)
+    {
+        return;
+    }
+
+    while (!stopFlag)
+    {
+        DWORD waitStatus = WaitForSingleObject(hChange, INFINITE);
+
+        if (waitStatus == WAIT_OBJECT_0)
+        {
+            // Refresh the directory contents
+            RefreshPathSongs(path);
+
+            if (FindNextChangeNotification(hChange) == FALSE)
+            {
+                break;
+            }
+        }
+    }
+
+    FindCloseChangeNotification(hChange);
 }
 
 

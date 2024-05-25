@@ -36,7 +36,7 @@ int main(int, char**)
     ImFont* fontIconsBig = io.Fonts->AddFontFromMemoryTTF(&fontAwesomeIcons, sizeof(fontAwesomeIcons), 50.f, nullptr, icons_ranges);
 
     // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
+    SetSpotifyStyle();
     ImGuiStyle& style = ImGui::GetStyle();
 
     // Setup Platform/Renderer backends
@@ -85,12 +85,54 @@ int main(int, char**)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
+        if (music.getStatus() == sf::Music::Stopped && playingRoot)
+        {
+            if (songIndex == songList.size() - 1 && loop)
+            {
+                songIndex = 0;
+
+                if (random)
+                {
+                    ShuffleSongList(shuffledSongList);
+                    if (!music.openFromFile(songPath + "/" + shuffledSongList[songIndex]))
+                        return -1;
+                }
+                else
+                {
+                    if (!music.openFromFile(songPath + "/" + songList[songIndex]))
+                        return -1;
+                }
+
+                music.play();
+                playing = true;
+            }
+            else
+            {
+                songIndex++;
+
+                if (random)
+                {
+                    ShuffleSongList(shuffledSongList);
+                    if (!music.openFromFile(songPath + "/" + shuffledSongList[songIndex]))
+                        return -1;
+                }
+                else
+                {
+                    if (!music.openFromFile(songPath + "/" + songList[songIndex]))
+                        return -1;
+                }
+
+                music.play();
+                playing = true;
+            }
+        }
+
         {
             ImGui::SetNextWindowPos(ImVec2(0, 0));
             ImGui::SetNextWindowSize(ImVec2(static_cast<float>(windowWidth), static_cast<float>(windowHeight)));
             ImGui::Begin("yowio music", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
             {
-                if (!music.getStatus() == sf::Music::Playing)
+                if (music.getStatus() != sf::Music::Playing)
                     playing = false;
 
                 ImGui::Columns(2);
@@ -216,7 +258,7 @@ int main(int, char**)
 
                                 ImGui::SameLine();
 
-                                if (ImGui::Selectable(songList[i].c_str(), i == songIndex))
+                                if (ImGui::Selectable(songList[i].c_str()))
                                 {
                                     songIndex = i;
                                     std::string newPath = "./songs";
@@ -229,6 +271,7 @@ int main(int, char**)
                                     }
                                     music.play();
                                     playing = true;
+                                    playingRoot = true;
                                 }
                             }
                         }
@@ -262,17 +305,65 @@ int main(int, char**)
                         ImVec2 nextButtonSize = ImVec2(30, 23);
                         ImVec2 playButtonSize = ImVec2(40, 25);
                         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 100.f);
-                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x * 0.5f) - (backButtonSize.x + nextButtonSize.x + playButtonSize.x) / 2);
+                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ImGui::GetContentRegionAvail().x * 0.5f) - (backButtonSize.x + nextButtonSize.x + playButtonSize.x + playButtonSize.x + playButtonSize.x - 5) / 2);
                         ImGui::PushFont(fontIcons);
+                        if (ImGui::Button(ICON_FA_RANDOM))
+                        {
+                            random = !random;
+                            if (random)
+                            {
+                                shuffledSongList = songList;
+                                ShuffleSongList(shuffledSongList);
+                            }
+                            else 
+                            {
+                                shuffledSongList.clear();
+                            }
+                        }
+                        ImGui::SameLine();
                         if (ImGui::Button(ICON_FA_BACKWARD, backButtonSize))
                         {
+                            if (progress > 0.1 || songIndex == 0)
+                            {
+                                sf::Time newTime = sf::seconds(0.0f);
+                                music.setPlayingOffset(newTime);
 
+                                music.play();
+                                playing = true;
+                            }
+                            else
+                            {
+                                songIndex--;
+
+                                if (random)
+                                {
+                                    if (!music.openFromFile(songPath + "/" + shuffledSongList[songIndex]))
+                                        return -1;
+                                }
+                                else
+                                {
+                                    if (!music.openFromFile(songPath + "/" + songList[songIndex]))
+                                        return -1;
+                                }
+
+                                music.play();
+                                playing = true;
+                            }
                         }
                         ImGui::SameLine();
                         if (ImGui::Button(playing ? ICON_FA_PAUSE : ICON_FA_PLAY, playButtonSize))
                         {
                             if (songIndex != -1)
                             {
+                                if (playingRoot)
+                                {
+                                    playingRoot = false;
+                                }
+                                else
+                                {
+                                    playingRoot = true;
+                                }
+
                                 if (playing)
                                 {
                                     music.pause();
@@ -284,11 +375,88 @@ int main(int, char**)
                                     playing = true;
                                 }
                             }
+                            else
+                            {
+                                songIndex = 0;
+
+                                if (random)
+                                {
+                                    if (!music.openFromFile(songPath + "/" + shuffledSongList[songIndex]))
+                                        return -1;
+                                }
+                                else
+                                {
+                                    if (!music.openFromFile(songPath + "/" + songList[songIndex]))
+                                        return -1;
+                                }
+
+                                music.play();
+                                playingRoot = true;
+                                playing = true;
+                            }
                         }
                         ImGui::SameLine();
                         if (ImGui::Button(ICON_FA_FORWARD, nextButtonSize))
                         {
+                            if (songIndex == songList.size() - 1 && loop)
+                            {
+                                songIndex = 0;
 
+                                if (random)
+                                {
+                                    if (!music.openFromFile(songPath + "/" + shuffledSongList[songIndex]))
+                                        return -1;
+                                }
+                                else
+                                {
+                                    if (!music.openFromFile(songPath + "/" + songList[songIndex]))
+                                        return -1;
+                                }
+
+                                music.play();
+                                playing = true;
+                            }
+                            else if (songIndex != songList.size() - 1)
+                            {
+                                songIndex++;
+
+                                if (random)
+                                {
+                                    if (!music.openFromFile(songPath + "/" + shuffledSongList[songIndex]))
+                                        return -1;
+                                }
+                                else
+                                {
+                                    if (!music.openFromFile(songPath + "/" + songList[songIndex]))
+                                        return -1;
+                                }
+
+                                music.play();
+                                playing = true;
+
+                            }
+                            else
+                            {
+                                playingRoot = false;
+                                playing = false;
+                                music.stop();
+                                songIndex = 0;
+                            }
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button(ICON_FA_REPEAT))
+                        {
+                            if (songIndex != -1)
+                            {
+                                if (loop)
+                                {
+                                    loop = false;
+                                }
+                                else
+                                {
+                                    loop = true;
+                                }
+                            }
                         }
                         ImGui::PopFont();
                         ImGui::PopStyleVar();

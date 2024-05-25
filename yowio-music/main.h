@@ -4,6 +4,9 @@
 #include <tchar.h>
 #include <filesystem>
 #include <thread>
+#include <algorithm>
+#include <random>
+#include <chrono>
 namespace fs = std::filesystem;
 
 /*      SFML        */
@@ -31,11 +34,15 @@ static D3DPRESENT_PARAMETERS    g_d3dpp = {};
 
 /*      PLAYER      */
 sf::Music music;
+bool playingRoot = false;
 bool playing = false;
 bool muted = false;
+bool loop = false;
+bool random = false;
 float sfmlVolume = 10.f;
 float progress = 0.0f;
 std::vector<std::string> songList = {};
+std::vector<std::string> shuffledSongList;
 std::vector<std::string> pathList = {};
 std::vector<std::string> navigationStack = {};
 int songIndex = -1;
@@ -45,6 +52,12 @@ std::string songPath = "./songs";
 static char downloadUrl[128];
 std::vector<std::string> addedUrl = {};
 std::atomic<bool> stopWatching(false);
+
+void ShuffleSongList(std::vector<std::string>& list) 
+{
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::shuffle(list.begin(), list.end(), std::default_random_engine(seed));
+}
 
 void RefreshPathSongs(const std::string& path)
 {
@@ -184,4 +197,74 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return 0;
     }
     return ::DefWindowProcW(hWnd, msg, wParam, lParam);
+}
+
+void SetSpotifyStyle() {
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+
+    // Fondo de la ventana
+    colors[ImGuiCol_WindowBg] = ImVec4(18.0f / 255.0f, 18.0f / 255.0f, 18.0f / 255.0f, 1.0f);
+
+    // Bordes
+    colors[ImGuiCol_Border] = ImVec4(40.0f / 255.0f, 40.0f / 255.0f, 40.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_BorderShadow] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+
+    // Título de la ventana
+    colors[ImGuiCol_TitleBg] = ImVec4(24.0f / 255.0f, 24.0f / 255.0f, 24.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_TitleBgActive] = ImVec4(30.0f / 255.0f, 30.0f / 255.0f, 30.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4(24.0f / 255.0f, 24.0f / 255.0f, 24.0f / 255.0f, 1.0f);
+
+    // Menú
+    colors[ImGuiCol_MenuBarBg] = ImVec4(24.0f / 255.0f, 24.0f / 255.0f, 24.0f / 255.0f, 1.0f);
+
+    // Barra de scroll
+    colors[ImGuiCol_ScrollbarBg] = ImVec4(30.0f / 255.0f, 30.0f / 255.0f, 30.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_ScrollbarGrab] = ImVec4(60.0f / 255.0f, 60.0f / 255.0f, 60.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(90.0f / 255.0f, 90.0f / 255.0f, 90.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(120.0f / 255.0f, 120.0f / 255.0f, 120.0f / 255.0f, 1.0f);
+
+    // Botones
+    colors[ImGuiCol_Button] = ImVec4(30.0f / 255.0f, 215.0f / 255.0f, 96.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(30.0f / 255.0f, 235.0f / 255.0f, 106.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(30.0f / 255.0f, 255.0f / 255.0f, 116.0f / 255.0f, 1.0f);
+
+    // Marco del checkbox, radio button, etc.
+    colors[ImGuiCol_FrameBg] = ImVec4(50.0f / 255.0f, 50.0f / 255.0f, 50.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(60.0f / 255.0f, 60.0f / 255.0f, 60.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_FrameBgActive] = ImVec4(70.0f / 255.0f, 70.0f / 255.0f, 70.0f / 255.0f, 1.0f);
+
+    // Texto
+    colors[ImGuiCol_Text] = ImVec4(255.0f / 255.0f, 255.0f / 255.0f, 255.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(120.0f / 255.0f, 120.0f / 255.0f, 120.0f / 255.0f, 1.0f);
+
+    // Hover y active de la selección
+    colors[ImGuiCol_Header] = ImVec4(60.0f / 255.0f, 60.0f / 255.0f, 60.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(70.0f / 255.0f, 70.0f / 255.0f, 70.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(80.0f / 255.0f, 80.0f / 255.0f, 80.0f / 255.0f, 1.0f);
+
+    // Separador
+    colors[ImGuiCol_Separator] = ImVec4(40.0f / 255.0f, 40.0f / 255.0f, 40.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_SeparatorHovered] = ImVec4(60.0f / 255.0f, 60.0f / 255.0f, 60.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_SeparatorActive] = ImVec4(80.0f / 255.0f, 80.0f / 255.0f, 80.0f / 255.0f, 1.0f);
+
+    // Resaltar
+    colors[ImGuiCol_ResizeGrip] = ImVec4(30.0f / 255.0f, 215.0f / 255.0f, 96.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_ResizeGripHovered] = ImVec4(30.0f / 255.0f, 235.0f / 255.0f, 106.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_ResizeGripActive] = ImVec4(30.0f / 255.0f, 255.0f / 255.0f, 116.0f / 255.0f, 1.0f);
+
+    // Tabs
+    colors[ImGuiCol_Tab] = ImVec4(40.0f / 255.0f, 40.0f / 255.0f, 40.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_TabHovered] = ImVec4(50.0f / 255.0f, 50.0f / 255.0f, 50.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_TabActive] = ImVec4(45.0f / 255.0f, 45.0f / 255.0f, 45.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_TabUnfocused] = ImVec4(40.0f / 255.0f, 40.0f / 255.0f, 40.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4(45.0f / 255.0f, 45.0f / 255.0f, 45.0f / 255.0f, 1.0f);
+
+    // Tooltips
+    colors[ImGuiCol_PopupBg] = ImVec4(24.0f / 255.0f, 24.0f / 255.0f, 24.0f / 255.0f, 1.0f);
+
+    // Otros
+    colors[ImGuiCol_CheckMark] = ImVec4(30.0f / 255.0f, 215.0f / 255.0f, 96.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_SliderGrab] = ImVec4(30.0f / 255.0f, 215.0f / 255.0f, 96.0f / 255.0f, 1.0f);
+    colors[ImGuiCol_SliderGrabActive] = ImVec4(30.0f / 255.0f, 235.0f / 255.0f, 106.0f / 255.0f, 1.0f);
 }
